@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>ISMAIL // Retirement Protocol</title>
+<style>
+  :root{
+    --bg:#02070b;
+    --panel:rgba(5,18,26,.72);
+    --cyan:#6ee7ff;
+    --cyan2:#b7f7ff;
+    --green:#8dffb2;
+    --danger:#ff6b6b;
+    --text:#e9fbff;
+    --muted:#7fa7b0;
+    --glow:0 0 10px rgba(110,231,255,.75),0 0 28px rgba(110,231,255,.25);
+  }
+  *{box-sizing:border-box}
+  html,body{width:100%;height:100%;margin:0;background:#000;overflow:hidden;font-family:Segoe UI,Arial,sans-serif;color:var(--text)}
+  body{touch-action:none;user-select:none;-webkit-user-select:none}
+  .screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .55s ease}
+  .screen.active{opacity:1;pointer-events:auto}
+
+  #boot{
+    background:
+      radial-gradient(circle at 50% 45%, rgba(7,58,72,.18), transparent 30%),
+      linear-gradient(rgba(110,231,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(110,231,255,.035) 1px, transparent 1px),
+      var(--bg);
+    background-size:auto,32px 32px,32px 32px,auto;
+  }
+
+  .vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 180px #000}
+  .noise{
+    position:absolute;inset:0;pointer-events:none;opacity:.045;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+    animation:noise .16s steps(2) infinite
+  }
+  @keyframes noise{50%{transform:translate3d(1px,-1px,0)}}
+
+  .topbar,.bottombar{
+    position:absolute;left:4vw;right:4vw;display:flex;justify-content:space-between;gap:16px;
+    font:600 11px/1.2 Consolas,monospace;letter-spacing:.18em;color:rgba(183,247,255,.6);
+    text-transform:uppercase
+  }
+  .topbar{top:4vh}
+  .bottombar{bottom:4vh}
+  .boot-center{text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;padding:20px}
+  .eyebrow{font:600 12px Consolas,monospace;letter-spacing:.35em;color:rgba(183,247,255,.65);text-transform:uppercase}
+  .title{font-size:clamp(24px,4vw,52px);font-weight:300;letter-spacing:.28em;text-indent:.28em;text-transform:uppercase}
+  .sub{font:500 12px Consolas,monospace;letter-spacing:.12em;color:var(--muted);max-width:540px}
+
+  .sensor-wrap{position:relative;width:min(42vw,260px);aspect-ratio:1;margin-top:4px}
+  .sensor{
+    position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+    background:
+      radial-gradient(circle, rgba(110,231,255,.13) 0 28%, rgba(110,231,255,.035) 29% 48%, transparent 49%),
+      conic-gradient(from 0deg, rgba(110,231,255,.25), transparent 22%, rgba(110,231,255,.55), transparent 60%, rgba(110,231,255,.25));
+    border:1px solid rgba(110,231,255,.45);
+    box-shadow:inset 0 0 38px rgba(110,231,255,.08),var(--glow);
+  }
+  .sensor:before,.sensor:after{
+    content:"";position:absolute;border-radius:50%;border:1px solid rgba(110,231,255,.22)
+  }
+  .sensor:before{inset:12%;animation:spin 7s linear infinite}
+  .sensor:after{inset:25%;border-style:dashed;animation:spin 3s linear infinite reverse}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pulse{position:absolute;inset:18%;border:1px solid rgba(110,231,255,.45);border-radius:50%;animation:pulse 1.5s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(.72);opacity:.8}100%{transform:scale(1.35);opacity:0}}
+
+  .fingerprint{width:44%;filter:drop-shadow(0 0 10px rgba(110,231,255,.45));opacity:.92}
+  .progress-svg{position:absolute;inset:-6%;width:112%;height:112%;transform:rotate(-90deg);pointer-events:none}
+  .progress-bg{fill:none;stroke:rgba(110,231,255,.10);stroke-width:3}
+  .progress{fill:none;stroke:var(--cyan);stroke-width:4;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;filter:drop-shadow(0 0 5px var(--cyan))}
+  .hold-text{font:600 12px Consolas,monospace;letter-spacing:.18em;color:var(--cyan2);text-transform:uppercase}
+  .hold-text strong{display:block;font-size:16px;margin-top:6px;color:white;letter-spacing:.08em}
+  .statusline{height:20px;font:600 11px Consolas,monospace;letter-spacing:.12em;color:var(--green);text-transform:uppercase}
+
+  #scan{background:#000}
+  #camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);filter:contrast(1.06) saturate(.85) brightness(.8)}
+  .camera-tint{position:absolute;inset:0;background:linear-gradient(rgba(0,22,28,.20),rgba(0,0,0,.45)),radial-gradient(circle at 50% 45%,transparent 0 26%,rgba(0,0,0,.45) 70%);pointer-events:none}
+  .scan-grid{position:absolute;inset:0;background:linear-gradient(rgba(110,231,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(110,231,255,.035) 1px,transparent 1px);background-size:36px 36px;mix-blend-mode:screen;pointer-events:none}
+  .hud-top{
+    position:absolute;top:3.5vh;left:4vw;right:4vw;display:flex;justify-content:space-between;align-items:start;
+    font:600 11px Consolas,monospace;letter-spacing:.14em;color:var(--cyan2);text-transform:uppercase;text-shadow:var(--glow)
+  }
+  .hud-stack{text-align:right;line-height:1.8;color:rgba(183,247,255,.75)}
+  .rec::before{content:"";display:inline-block;width:7px;height:7px;background:#ff5d5d;border-radius:50%;margin-right:7px;box-shadow:0 0 10px #ff5d5d;animation:blink .8s infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  #faceBox{position:absolute;left:50%;top:50%;width:min(50vw,360px);height:min(62vh,470px);transform:translate(-50%,-50%);transition:.12s linear;pointer-events:none}
+  .corner{position:absolute;width:34px;height:34px;border-color:var(--cyan);filter:drop-shadow(0 0 5px var(--cyan))}
+  .c1{left:0;top:0;border-left:2px solid;border-top:2px solid}
+  .c2{right:0;top:0;border-right:2px solid;border-top:2px solid}
+  .c3{left:0;bottom:0;border-left:2px solid;border-bottom:2px solid}
+  .c4{right:0;bottom:0;border-right:2px solid;border-bottom:2px solid}
+  .face-oval{position:absolute;left:18%;right:18%;top:9%;bottom:9%;border:1px dashed rgba(110,231,255,.38);border-radius:48% 48% 43% 43% / 42% 42% 58% 58%;box-shadow:inset 0 0 25px rgba(110,231,255,.04)}
+  .crosshair{position:absolute;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%)}
+  .crosshair:before,.crosshair:after{content:"";position:absolute;background:rgba(110,231,255,.65)}
+  .crosshair:before{left:50%;top:0;width:1px;height:100%}
+  .crosshair:after{top:50%;left:0;height:1px;width:100%}
+  .laser{
+    position:absolute;left:2%;right:2%;height:2px;top:8%;
+    background:linear-gradient(90deg,transparent,var(--cyan2),transparent);
+    box-shadow:0 0 18px var(--cyan),0 0 35px rgba(110,231,255,.7);
+    animation:scanline 2.3s ease-in-out infinite
+  }
+  @keyframes scanline{0%,100%{top:8%;opacity:.6}50%{top:90%;opacity:1}}
+  .nodes span{position:absolute;width:6px;height:6px;border:1px solid var(--cyan);border-radius:50%;box-shadow:0 0 8px var(--cyan);animation:node 1s infinite alternate}
+  .nodes span:nth-child(1){left:31%;top:32%}.nodes span:nth-child(2){left:64%;top:32%}.nodes span:nth-child(3){left:49%;top:48%}.nodes span:nth-child(4){left:35%;top:66%}.nodes span:nth-child(5){left:61%;top:66%}.nodes span:nth-child(6){left:49%;top:81%}
+  @keyframes node{to{transform:scale(1.8);opacity:.35}}
+
+  .scan-readout{
+    position:absolute;left:4vw;bottom:5vh;width:min(520px,90vw);
+    padding:14px 16px;border-left:2px solid rgba(110,231,255,.8);background:linear-gradient(90deg,rgba(0,20,27,.68),transparent);
+    font:600 12px/1.75 Consolas,monospace;letter-spacing:.08em;color:rgba(205,250,255,.9);text-transform:uppercase
+  }
+  .scan-readout .ok{color:var(--green)}
+  .scan-progress{height:3px;background:rgba(110,231,255,.12);margin-top:8px;overflow:hidden}
+  .scan-progress i{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 8px var(--cyan);transition:width .25s}
+
+  #final{
+    background:
+      radial-gradient(circle at 50% 50%, rgba(13,85,84,.25), transparent 35%),
+      linear-gradient(rgba(110,231,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(110,231,255,.028) 1px, transparent 1px),#010405;
+    background-size:auto,34px 34px,34px 34px,auto;
+    text-align:center
+  }
+  .verified-photo{
+    width:118px;height:148px;margin:0 auto 22px;position:relative;
+    border:1px solid rgba(110,231,255,.55);
+    background:rgba(2,10,14,.8);
+    box-shadow:inset 0 0 22px rgba(110,231,255,.08),0 0 20px rgba(110,231,255,.14);
+    overflow:visible;
+    opacity:0;
+    transform:translateY(10px) scale(.96);
+    transition:opacity .45s ease,transform .45s ease;
+  }
+  .verified-photo.show{opacity:1;transform:translateY(0) scale(1)}
+  .verified-photo img{
+    width:100%;height:100%;display:block;object-fit:cover;
+    transform:scaleX(-1);
+    filter:contrast(1.06) saturate(.82) brightness(.9);
+  }
+  .verified-photo:before,.verified-photo:after{
+    content:"";position:absolute;width:18px;height:18px;z-index:3;pointer-events:none
+  }
+  .verified-photo:before{
+    left:-5px;top:-5px;border-left:2px solid var(--cyan);border-top:2px solid var(--cyan)
+  }
+  .verified-photo:after{
+    right:-5px;bottom:-5px;border-right:2px solid var(--cyan);border-bottom:2px solid var(--cyan)
+  }
+  .verified-badge{
+    position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);
+    min-width:92px;padding:5px 10px;border:1px solid rgba(141,255,178,.6);
+    background:#03110a;color:var(--green);
+    font:700 10px Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;
+    box-shadow:0 0 12px rgba(141,255,178,.22);
+    white-space:nowrap;
+  }
+  .verified-badge:before{
+    content:"✓";margin-right:6px;font-size:12px
+  }
+  .photo-meta{
+    position:absolute;left:4px;right:4px;top:4px;
+    display:flex;justify-content:space-between;gap:4px;
+    font:600 7px Consolas,monospace;letter-spacing:.08em;
+    color:rgba(210,252,255,.75);text-shadow:0 1px 2px #000;
+    text-transform:uppercase;z-index:2;
+  }
+  .capture-flash{
+    position:absolute;inset:0;background:#dffcff;opacity:0;pointer-events:none;z-index:10
+  }
+  .capture-flash.go{animation:captureFlash .38s ease-out}
+  @keyframes captureFlash{0%{opacity:.88}100%{opacity:0}}
+
+  .final-card{position:relative;padding:40px 28px;max-width:900px;width:92vw}
+  .final-label{font:600 12px Consolas,monospace;letter-spacing:.35em;color:var(--green);text-transform:uppercase}
+  .code{font-size:clamp(38px,8vw,92px);font-weight:200;letter-spacing:.18em;text-indent:.18em;margin:16px 0 4px;text-shadow:0 0 22px rgba(110,231,255,.22)}
+  .code small{display:block;font:600 12px Consolas,monospace;letter-spacing:.28em;color:var(--cyan2);margin-bottom:8px}
+  .divider{width:min(520px,75vw);height:1px;margin:24px auto;background:linear-gradient(90deg,transparent,var(--cyan),transparent);box-shadow:0 0 12px var(--cyan)}
+  .mission{font-size:clamp(22px,4vw,46px);font-weight:600;letter-spacing:.16em;text-indent:.16em;text-transform:uppercase}
+  .retire{margin-top:12px;font:600 13px Consolas,monospace;letter-spacing:.2em;color:var(--green);text-transform:uppercase}
+  .service{margin-top:28px;color:rgba(233,251,255,.75);font-size:clamp(14px,2vw,20px);letter-spacing:.08em}
+  .restart{
+    margin-top:34px;border:1px solid rgba(110,231,255,.35);background:rgba(110,231,255,.06);color:var(--cyan2);
+    padding:11px 18px;font:600 11px Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;cursor:pointer
+  }
+
+  .flash{position:absolute;inset:0;background:white;opacity:0;pointer-events:none}
+  .flash.go{animation:flash .45s ease-out}
+  @keyframes flash{0%{opacity:.8}100%{opacity:0}}
+  .glitch{animation:glitch .45s steps(2) 1}
+  @keyframes glitch{20%{transform:translate(4px,-2px)}40%{transform:translate(-5px,2px)}60%{transform:translate(3px,1px)}80%{transform:translate(-2px,-1px)}}
+
+  @media (max-width:600px){
+    .topbar,.bottombar{left:5vw;right:5vw;font-size:9px}
+    .title{letter-spacing:.18em;text-indent:.18em}
+    .sensor-wrap{width:min(62vw,260px)}
+    .scan-readout{font-size:10px}
+  }
+</style>
+</head>
+<body>
+
+<section id="boot" class="screen active">
+  <div class="noise"></div><div class="vignette"></div>
+  <div class="topbar">
+    <span>RMC // SECURE TERMINAL</span>
+    <span>PROTOCOL 08-RET</span>
+  </div>
+
+  <div class="boot-center">
+    <div class="eyebrow">Biometric Authorization Node</div>
+    <div class="title">Identity Activation</div>
+    <div class="sub">Retirement protocol requires primary biometric confirmation.</div>
+
+    <div class="sensor-wrap">
+      <div id="sensor" class="sensor" role="button" aria-label="Hold biometric sensor">
+        <div class="pulse"></div>
+        <svg class="progress-svg" viewBox="0 0 100 100">
+          <circle class="progress-bg" cx="50" cy="50" r="45" pathLength="100"></circle>
+          <circle id="progressRing" class="progress" cx="50" cy="50" r="45" pathLength="100"></circle>
+        </svg>
+        <svg class="fingerprint" viewBox="0 0 100 100" fill="none" stroke="currentColor" color="#9df1ff" stroke-width="2.4" stroke-linecap="round">
+          <path d="M50 12c-18 0-33 14-33 32"/>
+          <path d="M83 45c0-18-15-33-33-33"/>
+          <path d="M25 45c0-14 11-25 25-25s25 11 25 25"/>
+          <path d="M33 45c0-10 8-18 17-18 10 0 18 8 18 18 0 20-7 34-13 43"/>
+          <path d="M41 45c0-5 4-9 9-9s9 4 9 9c0 16-4 28-8 36"/>
+          <path d="M50 45c0 17-6 29-11 37"/>
+          <path d="M29 56c1 12-2 22-7 30"/>
+          <path d="M21 54c2 14-2 25-7 33"/>
+          <path d="M76 54c-1 14-5 25-11 34"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="hold-text">Place finger on sensor<strong>PRESS & HOLD</strong></div>
+    <div id="bootStatus" class="statusline">SYSTEM STANDBY</div>
+  </div>
+
+  <div class="bottombar">
+    <span>ENCRYPTION: ACTIVE</span>
+    <span>ID: CLASSIFIED</span>
+  </div>
+</section>
+
+<section id="scan" class="screen">
+  <video id="camera" autoplay muted playsinline></video>
+  <div class="camera-tint"></div>
+  <div class="scan-grid"></div>
+  <div class="noise"></div>
+  <div class="hud-top">
+    <div>
+      <div class="rec">LIVE BIOMETRIC FEED</div>
+      <div style="margin-top:8px;color:rgba(183,247,255,.55)">FRONT SENSOR // MIRROR FEED</div>
+    </div>
+    <div class="hud-stack">
+      <div id="timecode">00:00:00</div>
+      <div>SECURE CHANNEL 04</div>
+      <div id="detectorState">FACE TRACK: INIT</div>
+    </div>
+  </div>
+
+  <div id="faceBox">
+    <div class="corner c1"></div><div class="corner c2"></div>
+    <div class="corner c3"></div><div class="corner c4"></div>
+    <div class="face-oval"></div>
+    <div class="crosshair"></div>
+    <div class="laser"></div>
+    <div class="nodes">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div class="scan-readout">
+    <div id="scanLine1">INITIALIZING FACIAL MAPPING...</div>
+    <div id="scanLine2">GEOMETRIC VECTOR: PENDING</div>
+    <div id="scanLine3">IDENTITY MATRIX: PENDING</div>
+    <div class="scan-progress"><i id="scanBar"></i></div>
+  </div>
+  <div id="flash" class="flash"></div>
+  <div id="captureFlash" class="capture-flash"></div>
+</section>
+
+<section id="final" class="screen">
+  <div class="noise"></div><div class="vignette"></div>
+  <div id="finalCard" class="final-card">
+    <div id="verifiedPhoto" class="verified-photo">
+      <div class="photo-meta"><span>FACIAL ID</span><span>ISMAIL</span></div>
+      <img id="verifiedImage" alt="Captured verified identity image" />
+      <div class="verified-badge">VERIFIED</div>
+    </div>
+    <div class="final-label">Identity Confirmed</div>
+    <div class="code"><small>CODE NAME</small>ISMAIL</div>
+    <div class="divider"></div>
+    <div class="mission">MISSION COMPLETE</div>
+    <div class="retire">RETIREMENT SEQUENCE ACTIVATED</div>
+    <div class="service">FINAL PROTOCOL AUTHORIZED // THANK YOU FOR YOUR SERVICE</div>
+    <button class="restart" onclick="resetExperience()">RESET PROTOCOL</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const HOLD_MS = 2500;
+  const SCAN_MS = 7000;
+
+  const boot = document.getElementById('boot');
+  const scan = document.getElementById('scan');
+  const final = document.getElementById('final');
+  const sensor = document.getElementById('sensor');
+  const ring = document.getElementById('progressRing');
+  const status = document.getElementById('bootStatus');
+  const camera = document.getElementById('camera');
+  const faceBox = document.getElementById('faceBox');
+  const scanBar = document.getElementById('scanBar');
+  const detectorState = document.getElementById('detectorState');
+  const flash = document.getElementById('flash');
+  const captureFlash = document.getElementById('captureFlash');
+  const verifiedPhoto = document.getElementById('verifiedPhoto');
+  const verifiedImage = document.getElementById('verifiedImage');
+
+  let pressStart = 0;
+  let raf = null;
+  let holding = false;
+  let stream = null;
+  let cameraPromise = null;
+  let audioCtx = null;
+  let detector = null;
+  let detectTimer = null;
+
+  function beep(freq=700, duration=.08, gain=.035){
+    try{
+      audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.value = gain;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + duration);
+      o.stop(audioCtx.currentTime + duration);
+    }catch(e){}
+  }
+
+  async function prepareCamera(){
+    // Reuse the same stream for the entire session.
+    if(stream && stream.active){
+      if(camera.srcObject !== stream) camera.srcObject = stream;
+      try { await camera.play(); } catch(e) {}
+      return true;
+    }
+
+    // Prevent multiple simultaneous getUserMedia() calls / permission prompts.
+    if(cameraPromise) return cameraPromise;
+
+    cameraPromise = (async () => {
+      try{
+        if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+          throw new Error('getUserMedia unavailable');
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video:{
+            facingMode:{ideal:'user'},
+            width:{ideal:1280},
+            height:{ideal:720}
+          },
+          audio:false
+        });
+
+        camera.srcObject = stream;
+        camera.muted = true;
+        camera.setAttribute('playsinline','');
+        await camera.play();
+        return true;
+      }catch(err){
+        console.error('Camera error:', err);
+        status.textContent = 'CAMERA ACCESS FAILED // USE HTTPS';
+        status.style.color = 'var(--danger)';
+        stream = null;
+        return false;
+      }finally{
+        cameraPromise = null;
+      }
+    })();
+
+    return cameraPromise;
+  }
+
+  function startHold(e){
+    e.preventDefault();
+    if(holding) return;
+    holding = true;
+    pressStart = performance.now();
+    status.style.color = 'var(--green)';
+    status.textContent = 'READING BIOMETRIC SIGNATURE...';
+    beep(520,.06);
+    // Request camera once from the user's first real gesture.
+    // Do not await here; the hold animation continues while permission is granted.
+    prepareCamera();
+
+    const tick = now => {
+      if(!holding) return;
+      const pct = Math.min(100, ((now - pressStart) / HOLD_MS) * 100);
+      ring.style.strokeDashoffset = (100 - pct).toFixed(2);
+      if(pct >= 100){
+        holding = false;
+        ring.style.strokeDashoffset = 0;
+        status.textContent = 'BIOMETRIC SIGNATURE ACQUIRED';
+        beep(980,.16,.05);
+        setTimeout(beginScan, 350);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  function cancelHold(){
+    if(!holding) return;
+    holding = false;
+    cancelAnimationFrame(raf);
+    ring.style.strokeDashoffset = 100;
+    status.textContent = 'HOLD INTERRUPTED // RETRY';
+    status.style.color = 'var(--danger)';
+    beep(220,.08);
+    setTimeout(()=>{
+      if(!holding){
+        status.textContent='SYSTEM STANDBY';
+        status.style.color='var(--green)';
+      }
+    },700);
+  }
+
+  sensor.addEventListener('pointerdown', startHold);
+  window.addEventListener('pointerup', cancelHold);
+  window.addEventListener('pointercancel', cancelHold);
+
+  function showScreen(el){
+    [boot,scan,final].forEach(s=>s.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  async function beginScan(){
+    // This reuses the camera request already started on pointerdown.
+    const camOK = await prepareCamera();
+
+    showScreen(scan);
+    beep(760,.07); setTimeout(()=>beep(900,.07),110);
+
+    if(camOK){
+      camera.style.display='';
+      document.querySelector('.camera-tint').style.background =
+        'linear-gradient(rgba(0,22,28,.20),rgba(0,0,0,.45)),radial-gradient(circle at 50% 45%,transparent 0 26%,rgba(0,0,0,.45) 70%)';
+      detectorState.textContent = 'FACE TRACK: INIT';
+      try { await camera.play(); } catch(e) {}
+    }else{
+      camera.style.display='none';
+      document.querySelector('.camera-tint').style.background =
+        'radial-gradient(circle at 50% 45%,rgba(10,50,60,.18),rgba(0,0,0,.92) 70%)';
+      detectorState.textContent = 'CAMERA: SIMULATION';
+    }
+
+    startFaceDetection();
+    runScanSequence();
+  }
+
+  function runScanSequence(){
+    const l1 = document.getElementById('scanLine1');
+    const l2 = document.getElementById('scanLine2');
+    const l3 = document.getElementById('scanLine3');
+    const start = performance.now();
+
+    const msgs = [
+      [0,     ()=>{l1.textContent='INITIALIZING FACIAL MAPPING...'; beep(620,.045)}],
+      [1300,  ()=>{l1.innerHTML='<span class="ok">FACIAL LANDMARKS ACQUIRED</span>'; l2.textContent='GEOMETRIC VECTOR: ANALYZING'; beep(700,.05)}],
+      [2700,  ()=>{l2.innerHTML='<span class="ok">GEOMETRIC VECTOR: STABLE</span>'; l3.textContent='IDENTITY MATRIX: CROSS-CHECKING'; beep(760,.05)}],
+      [4400,  ()=>{l3.innerHTML='<span class="ok">IDENTITY MATRIX: MATCH FOUND</span>'; beep(900,.07)}],
+      [5600,  ()=>{l1.innerHTML='<span class="ok">BIOMETRIC SIGNATURE VERIFIED</span>'; l2.innerHTML='<span class="ok">CODE NAME: ISMAIL</span>'; beep(1050,.12,.05)}],
+    ];
+    msgs.forEach(([t,fn])=>setTimeout(fn,t));
+
+    const animate = now=>{
+      const pct = Math.min(100, ((now-start)/SCAN_MS)*100);
+      scanBar.style.width = pct+'%';
+      if(pct<100) requestAnimationFrame(animate);
+      else completeScan();
+    };
+    requestAnimationFrame(animate);
+  }
+
+  function captureIdentityPhoto(){
+    if(!stream || camera.readyState < 2 || !camera.videoWidth || !camera.videoHeight){
+      return false;
+    }
+
+    try{
+      const canvas = document.createElement('canvas');
+      const vw = camera.videoWidth;
+      const vh = camera.videoHeight;
+
+      // Portrait crop centered on the face area.
+      const targetRatio = 4 / 5;
+      let cropW = vw;
+      let cropH = cropW / targetRatio;
+
+      if(cropH > vh){
+        cropH = vh;
+        cropW = cropH * targetRatio;
+      }
+
+      // Slightly favor the upper-middle area, where the face normally is.
+      const sx = Math.max(0, (vw - cropW) / 2);
+      const sy = Math.max(0, Math.min(vh - cropH, (vh - cropH) * 0.38));
+
+      canvas.width = 480;
+      canvas.height = 600;
+      const ctx = canvas.getContext('2d');
+
+      ctx.drawImage(
+        camera,
+        sx, sy, cropW, cropH,
+        0, 0, canvas.width, canvas.height
+      );
+
+      verifiedImage.src = canvas.toDataURL('image/jpeg', .9);
+      return true;
+    }catch(err){
+      console.error('Snapshot error:', err);
+      return false;
+    }
+  }
+
+  function completeScan(){
+    // Take the actual camera snapshot at the end of facial scanning.
+    const captured = captureIdentityPhoto();
+
+    captureFlash.classList.remove('go');
+    void captureFlash.offsetWidth;
+    captureFlash.classList.add('go');
+
+    beep(1180,.16,.05);
+
+    setTimeout(()=>{
+      showScreen(final);
+
+      if(captured){
+        verifiedPhoto.classList.remove('show');
+        void verifiedPhoto.offsetWidth;
+        verifiedPhoto.classList.add('show');
+      }else{
+        verifiedPhoto.classList.remove('show');
+      }
+
+      document.getElementById('finalCard').classList.add('glitch');
+      beep(520,.08);
+      setTimeout(()=>beep(780,.08),120);
+      setTimeout(()=>beep(1040,.18),240);
+      stopDetection();
+      // Keep camera stream alive so RESET does not ask permission again.
+    },420);
+  }
+
+  function startFaceDetection(){
+    stopDetection();
+    if('FaceDetector' in window && stream){
+      try{
+        detector = new FaceDetector({fastMode:true, maxDetectedFaces:1});
+        detectorState.textContent='FACE TRACK: ACTIVE';
+        detectTimer = setInterval(async ()=>{
+          try{
+            if(camera.readyState < 2) return;
+            const faces = await detector.detect(camera);
+            if(!faces.length){
+              detectorState.textContent='FACE TRACK: SEARCHING';
+              return;
+            }
+            detectorState.textContent='FACE TRACK: LOCKED';
+            const b = faces[0].boundingBox;
+            const vw = camera.videoWidth || 1, vh = camera.videoHeight || 1;
+            const cw = innerWidth, ch = innerHeight;
+            const scale = Math.max(cw/vw, ch/vh);
+            const renderedW = vw*scale, renderedH = vh*scale;
+            const offX = (cw-renderedW)/2, offY=(ch-renderedH)/2;
+
+            // video is mirrored, so flip x for overlay
+            const x = cw - (offX + (b.x+b.width)*scale);
+            const y = offY + b.y*scale;
+            const w = b.width*scale, h=b.height*scale;
+            faceBox.style.left = (x+w/2)+'px';
+            faceBox.style.top = (y+h/2)+'px';
+            faceBox.style.width = Math.max(180,w*1.35)+'px';
+            faceBox.style.height = Math.max(240,h*1.55)+'px';
+          }catch(e){}
+        },180);
+      }catch(e){
+        detectorState.textContent='FACE TRACK: VISUAL MODE';
+      }
+    }else{
+      detectorState.textContent='FACE TRACK: VISUAL MODE';
+    }
+  }
+
+  function stopDetection(){
+    if(detectTimer) clearInterval(detectTimer);
+    detectTimer=null; detector=null;
+  }
+
+  function stopCamera(){
+    if(stream){
+      stream.getTracks().forEach(t=>t.stop());
+      stream=null;
+      camera.srcObject=null;
+    }
+  }
+
+  // Release camera only when leaving / refreshing the page.
+  window.addEventListener('beforeunload', stopCamera);
+  window.addEventListener('pagehide', stopCamera);
+
+  window.resetExperience = function(){
+    stopDetection();
+    // Intentionally keep the camera stream alive for the whole page session.
+    ring.style.strokeDashoffset=100;
+    scanBar.style.width='0';
+    status.textContent='SYSTEM STANDBY';
+    status.style.color='var(--green)';
+    camera.style.display='';
+    document.getElementById('scanLine1').textContent='INITIALIZING FACIAL MAPPING...';
+    document.getElementById('scanLine2').textContent='GEOMETRIC VECTOR: PENDING';
+    document.getElementById('scanLine3').textContent='IDENTITY MATRIX: PENDING';
+    faceBox.removeAttribute('style');
+    document.getElementById('finalCard').classList.remove('glitch');
+    verifiedPhoto.classList.remove('show');
+    verifiedImage.removeAttribute('src');
+    showScreen(boot);
+  }
+
+  // Camera access is most reliable on HTTPS or localhost.
+  if(!window.isSecureContext && location.protocol !== 'file:'){
+    status.textContent = 'SECURE HTTPS CONNECTION REQUIRED FOR CAMERA';
+    status.style.color = 'var(--danger)';
+  }
+
+  setInterval(()=>{
+    const d=new Date();
+    document.getElementById('timecode').textContent =
+      [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+  },250);
+
+  document.addEventListener('keydown',e=>{
+    if(e.key.toLowerCase()==='r') resetExperience();
+  });
+})();
+</script>
+</body>
+</html>
